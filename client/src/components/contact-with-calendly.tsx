@@ -79,7 +79,7 @@ export default function ContactWithCalendly() {
           console.log('Initializing Calendly widget');
           try {
             window.Calendly.initInlineWidget({
-              url: 'https://calendly.com/your-username/roofing-estimate?hide_gdpr_banner=1&primary_color=10b981',
+              url: 'https://calendly.com/aescalante-oksigma/new-meeting?hide_gdpr_banner=1&primary_color=10b981',
               parentElement: element,
               prefill: {
                 email: formData.email || '',
