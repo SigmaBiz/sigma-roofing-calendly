@@ -30,7 +30,8 @@ class EmailService {
     try {
       const subject = `🏠 New Roofing Lead: ${lead.firstName} ${lead.lastName} - ${lead.serviceType}`;
       
-      const formatTimeSlot = (time: string) => {
+      const formatTimeSlot = (time: string | null) => {
+        if (!time) return 'Not specified';
         const hour = parseInt(time.split(':')[0]);
         const startTime = hour <= 12 ? `${hour}:00 AM` : `${hour - 12}:00 PM`;
         const endHour = hour + 4;
@@ -73,6 +74,7 @@ class EmailService {
               </table>
             </div>
 
+            ${lead.preferredDate1 && lead.preferredTime1 ? `
             <h3 style="color: #047857; margin-bottom: 10px;">📅 Preferred Appointment Times</h3>
             <div style="background: white; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
               <div style="margin-bottom: 15px;">
@@ -80,12 +82,15 @@ class EmailService {
                 <span style="color: #10b981; font-weight: bold;">${new Date(lead.preferredDate1).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span><br>
                 <span style="color: #111827;">${formatTimeSlot(lead.preferredTime1)}</span>
               </div>
+              ${lead.preferredDate2 && lead.preferredTime2 ? `
               <div>
                 <strong style="color: #374151;">Second Choice:</strong><br>
                 <span style="color: #10b981; font-weight: bold;">${new Date(lead.preferredDate2).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span><br>
                 <span style="color: #111827;">${formatTimeSlot(lead.preferredTime2)}</span>
               </div>
+              ` : ''}
             </div>
+            ` : ''}
             
             ${lead.description ? `
             <h3 style="color: #047857; margin-bottom: 10px;">Project Details</h3>

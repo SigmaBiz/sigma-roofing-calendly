@@ -605,10 +605,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get daily hail content with trending phrase integration
   app.get('/api/storm-data/daily-hail-content', async (req, res) => {
     try {
-      const phrase = req.query.phrase as string;
-      
       // Get hail content with trending phrase integration (12 months lookback)
-      const activeContent = await stormDataService.getDailyHailContentWithTrends(phrase);
+      const activeContent = await stormDataService.getDailyHailContentWithTrends();
       
       if (activeContent) {
         res.json({
@@ -1282,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const matchingPhrase = 
-        recentPhrases.find(p => stormDataService.matchesPhrase(eventForMatching, (p as any).text || p))?.text ||
+        recentPhrases.find(p => stormDataService.matchesPhrase(eventForMatching, typeof p === 'string' ? p : (p as any).text)) ||
         phrases.find(p => stormDataService.matchesPhrase(eventForMatching, p)) ||
         fallbackPhrase;
 

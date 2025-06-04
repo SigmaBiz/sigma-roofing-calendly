@@ -70,7 +70,9 @@ export class MemStorage implements IStorage {
     const id = this.currentProjectId++;
     const newProject: Project = {
       ...project,
+      location: project.location || null,
       id,
+      isActive: "true",
       createdAt: new Date(),
     };
     this.projects.set(id, newProject);
@@ -102,6 +104,7 @@ export class MemStorage implements IStorage {
           imageUrl: project.image || project.imageUrl || '',
           category: project.category || 'General',
           location: project.location || 'Edmond, OK',
+          isActive: "true",
           createdAt: new Date()
         };
         this.projects.set(id, newProject);
@@ -119,7 +122,7 @@ export class MemStorage implements IStorage {
 
   async updateWebsiteImages(images: InsertWebsiteImages): Promise<WebsiteImages> {
     // Get existing images to preserve them
-    const existing = this.websiteImages || {};
+    const existing = this.websiteImages || {} as WebsiteImages;
     
     const updatedImages: WebsiteImages = {
       id: 1,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ export default function MVP3ContactForm() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const addressTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Load Calendly widget script
   useEffect(() => {
@@ -124,18 +125,22 @@ export default function MVP3ContactForm() {
     return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6, 10)}`;
   }
 
-  // Address autocomplete
-  let addressTimeout: NodeJS.Timeout;
-  async function searchAddresses() {
-    if (formData.address.length < 1) {
+  // Address autocomplete with debouncing
+  const searchAddresses = (value: string) => {
+    // Clear previous timeout
+    if (addressTimeoutRef.current) {
+      clearTimeout(addressTimeoutRef.current);
+    }
+    
+    if (value.length < 1) {
       setShowSuggestions(false);
       return;
     }
     
-    clearTimeout(addressTimeout);
-    addressTimeout = setTimeout(async () => {
+    // Set new timeout for debouncing
+    addressTimeoutRef.current = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/address-suggestions?q=${encodeURIComponent(formData.address)}`);
+        const response = await fetch(`/api/address-suggestions?q=${encodeURIComponent(value)}`);
         const data = await response.json();
         
         if (data.success && data.suggestions?.length > 0) {
@@ -148,8 +153,8 @@ export default function MVP3ContactForm() {
         console.error('Address search error:', error);
         setShowSuggestions(false);
       }
-    }, 200);
-  }
+    }, 300);
+  };
 
   function selectAddress(suggestion: AddressSuggestion) {
     setFormData(prev => ({ ...prev, address: suggestion.formatted_address }));
@@ -172,7 +177,7 @@ export default function MVP3ContactForm() {
     } else if (field === 'phone') {
       setValidation(prev => ({ ...prev, phone: validatePhone(processedValue) }));
     } else if (field === 'address') {
-      searchAddresses();
+      searchAddresses(processedValue);
     }
   };
 
@@ -338,6 +343,10 @@ export default function MVP3ContactForm() {
                     type="text"
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
+                    onBlur={() => {
+                      // Delay to allow clicking on suggestions
+                      setTimeout(() => setShowSuggestions(false), 200);
+                    }}
                     placeholder="Property Address (Oklahoma)*"
                     required
                     className="h-12"
