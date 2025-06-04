@@ -150,4 +150,6 @@ export class MemStorage implements IStorage {
   }
 }
 
+// For now, use MemStorage everywhere
+// In production, data should be persisted via external services (database, cloud storage, etc.)
 export const storage = new MemStorage();

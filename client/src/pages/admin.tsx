@@ -120,20 +120,28 @@ export default function Admin() {
 
   // Load saved images when component mounts
   useEffect(() => {
-    // Load from API first
+    // First, always try to load from localStorage for immediate display
+    const imageKeys = [
+      'heroBackground', 'heroFeatureImage', 'residentialRoofingImage', 'roofRepairImage',
+      'roofInspectionImage', 'gutterServiceImage', 'stormDamageImage',
+      'paintingServiceImage', 'teamPhoto', 'visionImage', 'companyLogo',
+      'processStep1Image', 'processStep2Image', 'processStep3Image',
+      'processStep4Image', 'testimonialBackground', 'stormReportBackground'
+    ];
+    
+    imageKeys.forEach(key => {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        setWebsiteImages(prev => ({ ...prev, [key]: saved }));
+      }
+    });
+    
+    // Then update with API data if available
     if (savedImages?.success && savedImages?.images) {
       setWebsiteImages(prev => ({
         ...prev,
         ...savedImages.images
       }));
-    } else if (!isLoading) {
-      // Load website images from localStorage as fallback
-      Object.keys(websiteImages).forEach(key => {
-        const saved = localStorage.getItem(key);
-        if (saved) {
-          setWebsiteImages(prev => ({ ...prev, [key]: saved }));
-        }
-      });
     }
 
     // Load all project data and sync to API
