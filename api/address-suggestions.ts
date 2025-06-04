@@ -14,25 +14,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
+  // Fallback Oklahoma cities
+  const fallbackSuggestions = [
+    { formatted_address: "Oklahoma City, OK, USA", place_id: "fallback_okc" },
+    { formatted_address: "Edmond, OK, USA", place_id: "fallback_edmond" },
+    { formatted_address: "Norman, OK, USA", place_id: "fallback_norman" },
+    { formatted_address: "Moore, OK, USA", place_id: "fallback_moore" },
+    { formatted_address: "Midwest City, OK, USA", place_id: "fallback_mwc" },
+    { formatted_address: "Yukon, OK, USA", place_id: "fallback_yukon" },
+    { formatted_address: "Mustang, OK, USA", place_id: "fallback_mustang" },
+    { formatted_address: "Deer Creek, OK, USA", place_id: "fallback_deer_creek" }
+  ];
+
   try {
     const query = req.query.q as string;
     const apiKey = process.env.GOOGLE_API_KEY;
     
-    if (!apiKey) {
-      console.error('Google API key not configured');
-      return res.status(200).json({ success: true, suggestions: [] });
+    if (!apiKey || !query || query.length < 1) {
+      // Return filtered fallback suggestions
+      const filtered = fallbackSuggestions.filter(city => 
+        city.formatted_address.toLowerCase().includes(query?.toLowerCase() || '')
+      );
+      
+      return res.status(200).json({ 
+        success: true, 
+        suggestions: filtered,
+        source: 'fallback'
+      });
     }
 
-    if (!query || query.length < 1) {
-      return res.status(200).json({ success: true, suggestions: [] });
-    }
-
-    // Google Places Autocomplete API with Oklahoma restriction
-    // Using components filter to restrict to Oklahoma, USA
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us|administrative_area:OK&key=${apiKey}`
-    );
+    // Google Places API call - match MVP3 exactly
+    const apiUrl = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
+    apiUrl.searchParams.set('input', `${query} Oklahoma`);
+    apiUrl.searchParams.set('types', 'address');
+    apiUrl.searchParams.set('components', 'country:us');
+    apiUrl.searchParams.set('key', apiKey);
     
+    const response = await fetch(apiUrl.toString());
     const data = await response.json();
     
     console.log(`Address search for "${query}":`, data.status);
@@ -47,15 +65,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       res.status(200).json({ 
         success: true, 
-        suggestions: suggestions 
+        suggestions: suggestions,
+        source: 'google_places'
       });
     } else {
+      // Return fallback on API error
       console.log('Places API error:', data.status, data.error_message);
-      res.status(200).json({ success: true, suggestions: [] });
+      res.status(200).json({ 
+        success: true, 
+        suggestions: fallbackSuggestions.slice(0, 4),
+        source: 'fallback'
+      });
     }
     
   } catch (error) {
     console.error("Error fetching address suggestions:", error);
-    res.status(200).json({ success: true, suggestions: [] });
+    // Return fallback on error
+    res.status(200).json({ 
+      success: true, 
+      suggestions: fallbackSuggestions.slice(0, 4),
+      source: 'fallback'
+    });
   }
 }

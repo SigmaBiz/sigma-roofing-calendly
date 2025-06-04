@@ -25,12 +25,6 @@ interface ContactForm {
   serviceType: string;
 }
 
-interface ValidationState {
-  email: { valid: boolean; message: string };
-  phone: { valid: boolean; message: string };
-  address: { valid: boolean; message: string };
-}
-
 interface AddressSuggestion {
   formatted_address: string;
   place_id: string;
@@ -47,17 +41,12 @@ export default function MVP3ContactForm() {
     serviceType: ""
   });
 
-  const [validation, setValidation] = useState<ValidationState>({
-    email: { valid: false, message: "" },
-    phone: { valid: false, message: "" },
-    address: { valid: false, message: "" }
-  });
-
+  const [emailValid, setEmailValid] = useState(false);
+  const [phoneValid, setPhoneValid] = useState(false);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
-  const [addressSelected, setAddressSelected] = useState(false);
   const addressTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Load Calendly widget script
@@ -72,52 +61,52 @@ export default function MVP3ContactForm() {
   }, []);
 
   // Email validation
-  function validateEmail(email: string): { valid: boolean; message: string } {
-    if (!email) return { valid: false, message: "" };
+  function validateEmail(email: string): boolean {
+    if (!email) return false;
     
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailRegex.test(email)) {
-      return { valid: false, message: "Please enter a valid email address" };
+      return false;
     }
     
     const fakeDomains = ['test.com', 'example.com', 'fake.com', 'temp.com'];
     const domain = email.split('@')[1]?.toLowerCase();
     if (fakeDomains.some(fake => domain?.includes(fake))) {
-      return { valid: false, message: "Please use a real email address" };
+      return false;
     }
     
-    return { valid: true, message: "✓ Valid email address" };
+    return true;
   }
 
   // Phone validation
-  function validatePhone(phone: string): { valid: boolean; message: string } {
-    if (!phone) return { valid: false, message: "" };
+  function validatePhone(phone: string): boolean {
+    if (!phone) return false;
     
     const cleanPhone = phone.replace(/\D/g, '');
     
     if (cleanPhone.length < 10) {
-      return { valid: false, message: "Phone number must be at least 10 digits" };
+      return false;
     }
     
     if (cleanPhone.length > 11) {
-      return { valid: false, message: "Phone number too long" };
+      return false;
     }
     
     const phoneNumber = cleanPhone.length === 11 ? cleanPhone.slice(1) : cleanPhone;
     
     if (phoneNumber[0] === '0' || phoneNumber[0] === '1') {
-      return { valid: false, message: "Invalid area code" };
+      return false;
     }
     
     if (phoneNumber[3] === '0' || phoneNumber[3] === '1') {
-      return { valid: false, message: "Invalid phone number format" };
+      return false;
     }
     
     if (/^(\d)\1{9}$/.test(phoneNumber)) {
-      return { valid: false, message: "Please enter a real phone number" };
+      return false;
     }
     
-    return { valid: true, message: "✓ Valid phone number" };
+    return true;
   }
 
   // Format phone number
@@ -128,40 +117,21 @@ export default function MVP3ContactForm() {
     return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6, 10)}`;
   }
 
-  // Address validation
-  function validateAddress(address: string, isSelected: boolean): { valid: boolean; message: string } {
-    if (!address) return { valid: false, message: "" };
+  // Address autocomplete - matching MVP3 exactly
+  const searchAddresses = () => {
+    const value = formData.address;
     
-    if (!isSelected && address.length > 0) {
-      return { valid: false, message: "Please select an address from the dropdown" };
+    if (!value || value.length < 1) {
+      setShowSuggestions(false);
+      return;
     }
     
-    if (isSelected) {
-      return { valid: true, message: "✓ Valid Oklahoma address selected" };
-    }
-    
-    return { valid: false, message: "" };
-  }
-
-  // Address autocomplete with debouncing
-  const searchAddresses = (value: string) => {
     // Clear previous timeout
     if (addressTimeoutRef.current) {
       clearTimeout(addressTimeoutRef.current);
     }
     
-    if (value.length < 1) {
-      setShowSuggestions(false);
-      setAddressSuggestions([]);
-      return;
-    }
-    
-    // Show suggestions immediately while searching
-    if (!addressSelected) {
-      setShowSuggestions(true);
-    }
-    
-    // Set new timeout for debouncing
+    // Set new timeout for debouncing (200ms like MVP3)
     addressTimeoutRef.current = setTimeout(async () => {
       try {
         const response = await fetch(`/api/address-suggestions?q=${encodeURIComponent(value)}`);
@@ -171,45 +141,35 @@ export default function MVP3ContactForm() {
           setAddressSuggestions(data.suggestions);
           setShowSuggestions(true);
         } else {
-          setAddressSuggestions([]);
-          // Keep showing empty state if user is typing
-          if (value.length > 0 && !addressSelected) {
-            setShowSuggestions(true);
-          }
+          setShowSuggestions(false);
         }
       } catch (error) {
         console.error('Address search error:', error);
-        setAddressSuggestions([]);
+        setShowSuggestions(false);
       }
-    }, 300);
+    }, 200);
   };
 
   function selectAddress(suggestion: AddressSuggestion) {
     setFormData(prev => ({ ...prev, address: suggestion.formatted_address }));
     setShowSuggestions(false);
-    setAddressSelected(true);
-    setValidation(prev => ({ ...prev, address: validateAddress(suggestion.formatted_address, true) }));
   }
 
-  // Update form data and validation
+  // Update form data
   const handleInputChange = (field: keyof ContactForm, value: string) => {
-    let processedValue = value;
-    
     if (field === 'phone') {
-      processedValue = formatPhoneNumber(value);
+      value = formatPhoneNumber(value);
     }
     
-    setFormData(prev => ({ ...prev, [field]: processedValue }));
+    setFormData(prev => ({ ...prev, [field]: value }));
     
     // Update validation
     if (field === 'email') {
-      setValidation(prev => ({ ...prev, email: validateEmail(processedValue) }));
+      setEmailValid(validateEmail(value));
     } else if (field === 'phone') {
-      setValidation(prev => ({ ...prev, phone: validatePhone(processedValue) }));
+      setPhoneValid(validatePhone(value));
     } else if (field === 'address') {
-      setAddressSelected(false); // Reset selection when user types
-      setValidation(prev => ({ ...prev, address: validateAddress(processedValue, false) }));
-      searchAddresses(processedValue);
+      searchAddresses();
     }
   };
 
@@ -241,6 +201,8 @@ export default function MVP3ContactForm() {
         address: "",
         serviceType: ""
       });
+      setEmailValid(false);
+      setPhoneValid(false);
       
       // Open Calendly popup
       setTimeout(() => {
@@ -275,18 +237,13 @@ export default function MVP3ContactForm() {
       return;
     }
     
-    if (!validation.email.valid) {
+    if (!emailValid) {
       alert('Please enter a valid email address.');
       return;
     }
     
-    if (!validation.phone.valid) {
+    if (!phoneValid) {
       alert('Please enter a valid phone number.');
-      return;
-    }
-    
-    if (!addressSelected || !validation.address.valid) {
-      alert('Please select a valid address from the dropdown suggestions.');
       return;
     }
     
@@ -294,6 +251,43 @@ export default function MVP3ContactForm() {
     contactMutation.mutate(formData);
     setIsSubmitting(false);
   }
+
+  // Email validation message
+  const emailValidationMessage = () => {
+    if (!formData.email) return "";
+    if (!emailValid) return "Please enter a valid email address";
+    return "✓ Valid email address";
+  };
+
+  // Phone validation message
+  const phoneValidationMessage = () => {
+    if (!formData.phone) return "";
+    const cleanPhone = formData.phone.replace(/\D/g, '');
+    
+    if (cleanPhone.length < 10) {
+      return "Phone number must be at least 10 digits";
+    }
+    
+    if (cleanPhone.length > 11) {
+      return "Phone number too long";
+    }
+    
+    const phoneNumber = cleanPhone.length === 11 ? cleanPhone.slice(1) : cleanPhone;
+    
+    if (phoneNumber[0] === '0' || phoneNumber[0] === '1') {
+      return "Invalid area code";
+    }
+    
+    if (phoneNumber[3] === '0' || phoneNumber[3] === '1') {
+      return "Invalid phone number format";
+    }
+    
+    if (/^(\d)\1{9}$/.test(phoneNumber)) {
+      return "Please enter a real phone number";
+    }
+    
+    return "✓ Valid phone number";
+  };
 
   return (
     <section id="contact" className="py-24 bg-gradient-to-br from-slate-50 to-white">
@@ -348,11 +342,11 @@ export default function MVP3ContactForm() {
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     placeholder="Email Address*"
                     required
-                    className={`h-12 ${validation.email.valid && formData.email ? 'border-green-500' : formData.email && !validation.email.valid ? 'border-red-500' : ''}`}
+                    className={`h-12 ${emailValid && formData.email ? 'border-green-500' : formData.email && !emailValid ? 'border-red-500' : ''}`}
                   />
-                  {formData.email && validation.email.message && (
-                    <div className={`text-sm mt-1 ${validation.email.valid ? 'text-green-600' : 'text-red-500'}`}>
-                      {validation.email.message}
+                  {formData.email && (
+                    <div className={`text-sm mt-1 ${emailValid ? 'text-green-600' : 'text-red-500'}`}>
+                      {emailValidationMessage()}
                     </div>
                   )}
                 </div>
@@ -365,11 +359,11 @@ export default function MVP3ContactForm() {
                     onChange={(e) => handleInputChange('phone', e.target.value)}
                     placeholder="Phone Number (e.g., 405-555-0123)*"
                     required
-                    className={`h-12 ${validation.phone.valid && formData.phone ? 'border-green-500' : formData.phone && !validation.phone.valid ? 'border-red-500' : ''}`}
+                    className={`h-12 ${phoneValid && formData.phone ? 'border-green-500' : formData.phone && !phoneValid ? 'border-red-500' : ''}`}
                   />
-                  {formData.phone && validation.phone.message && (
-                    <div className={`text-sm mt-1 ${validation.phone.valid ? 'text-green-600' : 'text-red-500'}`}>
-                      {validation.phone.message}
+                  {formData.phone && (
+                    <div className={`text-sm mt-1 ${phoneValid ? 'text-green-600' : 'text-red-500'}`}>
+                      {phoneValidationMessage()}
                     </div>
                   )}
                 </div>
@@ -380,45 +374,23 @@ export default function MVP3ContactForm() {
                     type="text"
                     value={formData.address}
                     onChange={(e) => handleInputChange('address', e.target.value)}
-                    onBlur={() => {
-                      // Delay to allow clicking on suggestions
-                      setTimeout(() => setShowSuggestions(false), 200);
-                    }}
-                    placeholder="Start typing address - Select from dropdown*"
+                    placeholder="Property Address (Oklahoma)*"
                     required
-                    className={`h-12 ${validation.address.valid && formData.address ? 'border-green-500' : formData.address && !validation.address.valid ? 'border-red-500' : ''}`}
+                    className="h-12"
                     autoComplete="off"
                   />
-                  {formData.address && validation.address.message && (
-                    <div className={`text-sm mt-1 ${validation.address.valid ? 'text-green-600' : 'text-red-500'}`}>
-                      {validation.address.message}
-                    </div>
-                  )}
-                  {formData.address && !addressSelected && addressSuggestions.length === 0 && (
-                    <div className="text-sm mt-1 text-amber-600">
-                      Searching for Oklahoma addresses...
-                    </div>
-                  )}
-                  {showSuggestions && (
+                  {showSuggestions && addressSuggestions.length > 0 && (
                     <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                      {addressSuggestions.length > 0 ? (
-                        addressSuggestions.map((suggestion, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0"
-                            onClick={() => selectAddress(suggestion)}
-                          >
-                            {suggestion.formatted_address}
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-4 py-3 text-gray-500 text-center">
-                          {formData.address.length < 3 
-                            ? "Keep typing to search for Oklahoma addresses..." 
-                            : "No Oklahoma addresses found. Please check your spelling."}
-                        </div>
-                      )}
+                      {addressSuggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0"
+                          onClick={() => selectAddress(suggestion)}
+                        >
+                          {suggestion.formatted_address}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
