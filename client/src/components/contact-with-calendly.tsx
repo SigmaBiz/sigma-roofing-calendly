@@ -573,25 +573,22 @@ export default function ContactWithCalendly() {
                     </div>
                   )}
                   
-                  {/* Calendly inline widget */}
-                  <div className="bg-white rounded-lg shadow-inner p-4" style={{ minHeight: '650px' }}>
-                    <div 
-                      className="calendly-inline-widget" 
-                      style={{ minWidth: '320px', height: '650px', position: 'relative' }}
-                    >
-                      {/* Loading message while Calendly loads */}
-                      <div className="flex items-center justify-center h-full text-gray-500">
-                        <div className="text-center">
-                          <Calendar className="w-12 h-12 mx-auto mb-4 text-emerald-600 animate-pulse" />
-                          <p>Loading scheduling calendar...</p>
-                        </div>
-                      </div>
+                  {/* Calendly popup button */}
+                  <div className="bg-white rounded-lg shadow-inner p-8 text-center">
+                    <div className="space-y-4">
+                      <Calendar className="w-16 h-16 mx-auto text-emerald-600" />
+                      <h4 className="text-xl font-semibold text-gray-900">Schedule Your Free Estimate</h4>
+                      <p className="text-gray-600">Choose a convenient time for your roofing consultation</p>
+                      <button
+                        type="button"
+                        onClick={() => window.open('https://calendly.com/aescalante-oksigma/new-meeting', '_blank')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-8 rounded-lg transition-colors duration-200"
+                      >
+                        Open Scheduling Calendar
+                      </button>
+                      <p className="text-sm text-gray-500">Opens in a new window</p>
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-gray-600 text-center mt-4">
-                    📅 Select a convenient time above for your free roofing estimate
-                  </p>
                 </div>
 
                 {/* Submit Button with Validation Status */}
