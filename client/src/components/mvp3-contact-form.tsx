@@ -28,6 +28,7 @@ interface ContactForm {
 interface ValidationState {
   email: { valid: boolean; message: string };
   phone: { valid: boolean; message: string };
+  address: { valid: boolean; message: string };
 }
 
 interface AddressSuggestion {
@@ -48,7 +49,8 @@ export default function MVP3ContactForm() {
 
   const [validation, setValidation] = useState<ValidationState>({
     email: { valid: false, message: "" },
-    phone: { valid: false, message: "" }
+    phone: { valid: false, message: "" },
+    address: { valid: false, message: "" }
   });
 
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
@@ -125,6 +127,24 @@ export default function MVP3ContactForm() {
     return `(${phone.slice(0, 3)}) ${phone.slice(3, 6)}-${phone.slice(6, 10)}`;
   }
 
+  // Address validation
+  function validateAddress(address: string): { valid: boolean; message: string } {
+    if (!address) return { valid: false, message: "" };
+    
+    const lowerAddress = address.toLowerCase();
+    const hasOklahoma = lowerAddress.includes('oklahoma') || lowerAddress.includes(', ok');
+    
+    if (!hasOklahoma && address.length > 5) {
+      return { valid: false, message: "Please enter a valid Oklahoma address" };
+    }
+    
+    if (hasOklahoma) {
+      return { valid: true, message: "✓ Valid Oklahoma address" };
+    }
+    
+    return { valid: false, message: "" };
+  }
+
   // Address autocomplete with debouncing
   const searchAddresses = (value: string) => {
     // Clear previous timeout
@@ -159,6 +179,7 @@ export default function MVP3ContactForm() {
   function selectAddress(suggestion: AddressSuggestion) {
     setFormData(prev => ({ ...prev, address: suggestion.formatted_address }));
     setShowSuggestions(false);
+    setValidation(prev => ({ ...prev, address: validateAddress(suggestion.formatted_address) }));
   }
 
   // Update form data and validation
@@ -177,6 +198,7 @@ export default function MVP3ContactForm() {
     } else if (field === 'phone') {
       setValidation(prev => ({ ...prev, phone: validatePhone(processedValue) }));
     } else if (field === 'address') {
+      setValidation(prev => ({ ...prev, address: validateAddress(processedValue) }));
       searchAddresses(processedValue);
     }
   };
@@ -250,6 +272,11 @@ export default function MVP3ContactForm() {
     
     if (!validation.phone.valid) {
       alert('Please enter a valid phone number.');
+      return;
+    }
+    
+    if (!validation.address.valid) {
+      alert('Please enter a valid Oklahoma address.');
       return;
     }
     
@@ -349,9 +376,14 @@ export default function MVP3ContactForm() {
                     }}
                     placeholder="Property Address (Oklahoma)*"
                     required
-                    className="h-12"
+                    className={`h-12 ${validation.address.valid && formData.address ? 'border-green-500' : formData.address && !validation.address.valid ? 'border-red-500' : ''}`}
                     autoComplete="off"
                   />
+                  {formData.address && validation.address.message && (
+                    <div className={`text-sm mt-1 ${validation.address.valid ? 'text-green-600' : 'text-red-500'}`}>
+                      {validation.address.message}
+                    </div>
+                  )}
                   {showSuggestions && addressSuggestions.length > 0 && (
                     <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
                       {addressSuggestions.map((suggestion, index) => (

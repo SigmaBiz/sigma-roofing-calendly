@@ -28,8 +28,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Google Places Autocomplete API with Oklahoma restriction
+    // Using components filter to restrict to Oklahoma, USA
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query + ' Oklahoma')}&types=address&key=${apiKey}`
+      `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:us|administrative_area:OK&key=${apiKey}`
     );
     
     const data = await response.json();
