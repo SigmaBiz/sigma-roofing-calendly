@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ success: true, suggestions: [] });
     }
 
-    if (!query || query.length < 3) {
+    if (!query || query.length < 1) {
       return res.status(200).json({ success: true, suggestions: [] });
     }
 
