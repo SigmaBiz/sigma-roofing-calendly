@@ -57,6 +57,7 @@ export default function MVP3ContactForm() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [addressSelected, setAddressSelected] = useState(false);
   const addressTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Load Calendly widget script
@@ -128,18 +129,15 @@ export default function MVP3ContactForm() {
   }
 
   // Address validation
-  function validateAddress(address: string): { valid: boolean; message: string } {
+  function validateAddress(address: string, isSelected: boolean): { valid: boolean; message: string } {
     if (!address) return { valid: false, message: "" };
     
-    const lowerAddress = address.toLowerCase();
-    const hasOklahoma = lowerAddress.includes('oklahoma') || lowerAddress.includes(', ok');
-    
-    if (!hasOklahoma && address.length > 5) {
-      return { valid: false, message: "Please enter a valid Oklahoma address" };
+    if (!isSelected && address.length > 0) {
+      return { valid: false, message: "Please select an address from the dropdown" };
     }
     
-    if (hasOklahoma) {
-      return { valid: true, message: "✓ Valid Oklahoma address" };
+    if (isSelected) {
+      return { valid: true, message: "✓ Valid Oklahoma address selected" };
     }
     
     return { valid: false, message: "" };
@@ -154,7 +152,13 @@ export default function MVP3ContactForm() {
     
     if (value.length < 1) {
       setShowSuggestions(false);
+      setAddressSuggestions([]);
       return;
+    }
+    
+    // Show suggestions immediately while searching
+    if (!addressSelected) {
+      setShowSuggestions(true);
     }
     
     // Set new timeout for debouncing
@@ -167,11 +171,15 @@ export default function MVP3ContactForm() {
           setAddressSuggestions(data.suggestions);
           setShowSuggestions(true);
         } else {
-          setShowSuggestions(false);
+          setAddressSuggestions([]);
+          // Keep showing empty state if user is typing
+          if (value.length > 0 && !addressSelected) {
+            setShowSuggestions(true);
+          }
         }
       } catch (error) {
         console.error('Address search error:', error);
-        setShowSuggestions(false);
+        setAddressSuggestions([]);
       }
     }, 300);
   };
@@ -179,7 +187,8 @@ export default function MVP3ContactForm() {
   function selectAddress(suggestion: AddressSuggestion) {
     setFormData(prev => ({ ...prev, address: suggestion.formatted_address }));
     setShowSuggestions(false);
-    setValidation(prev => ({ ...prev, address: validateAddress(suggestion.formatted_address) }));
+    setAddressSelected(true);
+    setValidation(prev => ({ ...prev, address: validateAddress(suggestion.formatted_address, true) }));
   }
 
   // Update form data and validation
@@ -198,7 +207,8 @@ export default function MVP3ContactForm() {
     } else if (field === 'phone') {
       setValidation(prev => ({ ...prev, phone: validatePhone(processedValue) }));
     } else if (field === 'address') {
-      setValidation(prev => ({ ...prev, address: validateAddress(processedValue) }));
+      setAddressSelected(false); // Reset selection when user types
+      setValidation(prev => ({ ...prev, address: validateAddress(processedValue, false) }));
       searchAddresses(processedValue);
     }
   };
@@ -275,8 +285,8 @@ export default function MVP3ContactForm() {
       return;
     }
     
-    if (!validation.address.valid) {
-      alert('Please enter a valid Oklahoma address.');
+    if (!addressSelected || !validation.address.valid) {
+      alert('Please select a valid address from the dropdown suggestions.');
       return;
     }
     
@@ -374,7 +384,7 @@ export default function MVP3ContactForm() {
                       // Delay to allow clicking on suggestions
                       setTimeout(() => setShowSuggestions(false), 200);
                     }}
-                    placeholder="Property Address (Oklahoma)*"
+                    placeholder="Start typing address - Select from dropdown*"
                     required
                     className={`h-12 ${validation.address.valid && formData.address ? 'border-green-500' : formData.address && !validation.address.valid ? 'border-red-500' : ''}`}
                     autoComplete="off"
@@ -384,18 +394,31 @@ export default function MVP3ContactForm() {
                       {validation.address.message}
                     </div>
                   )}
-                  {showSuggestions && addressSuggestions.length > 0 && (
+                  {formData.address && !addressSelected && addressSuggestions.length === 0 && (
+                    <div className="text-sm mt-1 text-amber-600">
+                      Searching for Oklahoma addresses...
+                    </div>
+                  )}
+                  {showSuggestions && (
                     <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
-                      {addressSuggestions.map((suggestion, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0"
-                          onClick={() => selectAddress(suggestion)}
-                        >
-                          {suggestion.formatted_address}
-                        </button>
-                      ))}
+                      {addressSuggestions.length > 0 ? (
+                        addressSuggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            className="w-full text-left px-4 py-3 hover:bg-gray-100 border-b last:border-b-0"
+                            onClick={() => selectAddress(suggestion)}
+                          >
+                            {suggestion.formatted_address}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-4 py-3 text-gray-500 text-center">
+                          {formData.address.length < 3 
+                            ? "Keep typing to search for Oklahoma addresses..." 
+                            : "No Oklahoma addresses found. Please check your spelling."}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
